@@ -58,13 +58,13 @@ PulseStream Core (Hexagonal Rings)
           ▼
     ┌──────────────────────────────────────────────────┐
     │  Application Layer (Use Cases / Service Core)    │
-    │  [IngestEventUseCase] [MetricsQueryUseCase]       │
-    │  [EventPublisher Port] [AnalyticsQueryPort]       │
+    │  [IngestEventUseCase] [MetricsQueryUseCase]      │
+    │  [EventPublisher Port] [AnalyticsQueryPort]      │
     │        │                                         │
     │        ▼                                         │
     │  ┌────────────────────────────────────────────┐  │
     │  │  Domain Layer (Pure Center Ring)           │  │
-    │  │  [Order] [Payment] [Refund] [Activity]      │  │
+    │  │  [Order] [Payment] [Refund] [Activity]     │  │
     │  │  [DomainEvent] [Repository Ports]          │  │
     │  └────────────────────────────────────────────┘  │
     └──────────────────────────────────────────────────┘
