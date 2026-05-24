@@ -8,7 +8,7 @@
 
 PulseStream is a production-grade, highly observable, event-driven business analytics platform engineered with **Java 21**, **Spring Boot 3**, **Apache Kafka**, and **PostgreSQL 16**.
 
-Designed as a high-fidelity **engineering portfolio project**, PulseStream showcases advanced distributed systems reliability, **Hexagonal / Clean Architecture (Ports & Adapters)**, transactional event-sourcing consistency, **JWT authentication with Role-Based Access Control (RBAC)**, fault-tolerant **Dead Letter Queue (DLQ)** recovery pipelines, and complete **OpenTelemetry (OTEL) distributed tracing** backed by **Prometheus** and **Grafana**.
+Designed as a high-fidelity **engineering portfolio project**, PulseStream showcases advanced distributed systems reliability, **Hexagonal / Clean Architecture (Ports & Adapters)**, transactional event-driven consistency, **JWT authentication with Role-Based Access Control (RBAC)**, fault-tolerant **Dead Letter Queue (DLQ)** recovery pipelines, and complete **MDC correlation tracing** backed by **Prometheus** and **Grafana** metrics monitoring.
 
 ---
 
@@ -205,8 +205,10 @@ graph LR
 ### 1. Prometheus Scrape Configuration
 Prometheus automatically scrapes the Spring Boot Actuator endpoint at `/actuator/prometheus` on a 5-second interval, capturing JVM performance, Kafka topic latency lag, and custom Micrometer timers.
 
-### 2. OpenTelemetry & Jaeger Tracing
-When a request hits `EventIngestionController`, a correlation ID is extracted (or generated) and injected into MDC thread logging. OpenTelemetry interceptors trace HTTP operations, PostgreSQL JDBC queries, and outbox poll scheduler threads. Traces export to Jaeger on port `16686`, offering full visual deep-dives into call stacks.
+### 2. MDC Correlation Tracing & OTEL Compatibility
+When a request hits `EventIngestionController`, a unique correlation ID is extracted (via the HTTP `X-Correlation-Id` header) or dynamically generated. This correlation ID is injected into MDC (Mapped Diagnostic Context) logging across all execution threads, database transactions, the transactional outbox publisher scheduler, and outbound Kafka record headers. This enables cohesive trace correlation across raw console logs.
+
+Additionally, the system infrastructure (defined in `docker-compose.yml`) is fully provisioned with an **OpenTelemetry Collector** and **Jaeger Tracing** collector pipeline. To enable zero-code gRPC span tracing of HTTP controllers, Hibernate JDBC query plans, and Kafka events at runtime, developers can simply attach the standard [OpenTelemetry Java Agent](https://opentelemetry.io/docs/zero-code/java/agent/) to the Spring Boot JVM startup parameters.
 
 ### 3. Auto-Provisioned Grafana Dashboard
 Grafana is pre-configured with default datasource registries. It automatically loads our system health metrics dashboard (`PulseStream Distributed Performance Monitor`) displaying:

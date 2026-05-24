@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Event Schema Versioning**: Added `schemaVersion` parameter contracts to all record domain events. Implemented backward-compatible compact constructors defaulting missing version parameters to `1` automatically.
 - **Analytical Pagination**: Added a paginated event log endpoint `GET /api/v1/metrics/events` allowing historic log query plans to remain fast and scale-proof.
 - **Resilience4j Fault Tolerance**: Configured programmatic Circuit Breakers and Retries on PostgreSQL JPA analytics adapters and Apache Kafka message publishers.
-- **cncf Distributed Observability**: Integrated Jaeger tracing and an OpenTelemetry Collector trace forwarding pipeline. 
+- **CNCF Distributed Observability**: Integrated Jaeger tracing and an OpenTelemetry Collector trace forwarding pipeline. 
 - **Auto-Provisioned Dashboards**: Configured auto-provisioned Grafana dashboards tracking SLA percentiles (p95/p99) and database/outbox latencies on startup.
 - **k6 Load Benchmarks**: Created realistic stress-testing scripts for ingestion and analytics metrics endpoints.
 - **GitHub Hardening**: Added bug report, feature request, and PR templates, `CODEOWNERS`, `SECURITY.md`, and `CONTRIBUTING.md` guidelines.

@@ -43,7 +43,7 @@ public class AuthController {
     @ApiResponse(responseCode = "401", description = "Invalid credentials supplied.")
     public ResponseEntity<JwtResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         log.info("Authentication request for user: {}", loginRequest.username());
-        
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.username(),
@@ -53,7 +53,7 @@ public class AuthController {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = tokenProvider.generateToken(authentication);
-        
+
         log.info("Successfully authenticated user: {}, generated JWT", loginRequest.username());
         return ResponseEntity.ok(new JwtResponse(jwt));
     }

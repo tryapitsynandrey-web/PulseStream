@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-PulseStream is a public showcase showcase portfolio. The following versions are actively monitored for security considerations:
+PulseStream is a public showcase portfolio. The following versions are actively monitored for security considerations:
 
 | Version | Supported          |
 | ------- | ------------------ |

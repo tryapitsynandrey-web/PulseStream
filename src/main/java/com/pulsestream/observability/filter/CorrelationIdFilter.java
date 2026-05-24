@@ -23,7 +23,7 @@ public class CorrelationIdFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        
+
         if (request instanceof HttpServletRequest httpRequest && response instanceof HttpServletResponse httpResponse) {
             String correlationId = httpRequest.getHeader(CORRELATION_ID_HEADER);
             if (!StringUtils.hasText(correlationId)) {

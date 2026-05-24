@@ -1,7 +1,6 @@
 package com.pulsestream.domain.exception;
 
 public class DuplicateEventException extends RuntimeException {
-    
     private final String eventId;
 
     public DuplicateEventException(String eventId) {

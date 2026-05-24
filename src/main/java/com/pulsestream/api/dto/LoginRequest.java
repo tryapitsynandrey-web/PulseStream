@@ -8,7 +8,7 @@ public record LoginRequest(
     @Schema(description = "Account username.", example = "admin")
     @NotBlank(message = "Username is required")
     String username,
-    
+
     @Schema(description = "Account password.", example = "password")
     @NotBlank(message = "Password is required")
     String password

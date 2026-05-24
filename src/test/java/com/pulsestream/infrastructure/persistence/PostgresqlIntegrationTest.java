@@ -43,7 +43,7 @@ class PostgresqlIntegrationTest extends AbstractIntegrationTest {
     @Test
     void shouldSaveAndQueryOrdersForMetricsCalculation() {
         Instant now = Instant.now();
-        
+
         Order completedOrder = new Order(
                 "order-cmp-1",
                 "cust-1",

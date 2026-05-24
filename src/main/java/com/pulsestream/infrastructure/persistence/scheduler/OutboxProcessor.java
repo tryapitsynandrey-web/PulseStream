@@ -46,7 +46,7 @@ public class OutboxProcessor {
     @Transactional
     public void processOutbox() {
         List<OutboxEventEntity> pendingEvents = outboxRepository.findByStatusOrderByCreatedAtAsc(
-                "PENDING", 
+                "PENDING",
                 PageRequest.of(0, 50)
         );
 
