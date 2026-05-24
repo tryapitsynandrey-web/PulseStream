@@ -17,6 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.pulsestream.security.SecurityConstants;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -52,15 +54,13 @@ public class SecurityConfig {
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setContentType("application/json");
                     response.setStatus(401);
-                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
+                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Full authentication is required to access this resource.\"}");
                 })
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/token").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/events/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/v1/metrics/**").hasAnyRole("ADMIN", "ANALYST")
+                .requestMatchers(SecurityConstants.PUBLIC_MATCHERS).permitAll()
+                .requestMatchers(HttpMethod.POST, SecurityConstants.EVENTS_INGESTION_MATCHER).hasRole(SecurityConstants.ROLE_ADMIN)
+                .requestMatchers(HttpMethod.GET, SecurityConstants.METRICS_ANALYTICS_MATCHER).hasAnyRole(SecurityConstants.ROLE_ADMIN, SecurityConstants.ROLE_ANALYST)
                 .anyRequest().authenticated()
             );
 

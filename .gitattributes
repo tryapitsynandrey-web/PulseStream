@@ -1,2 +1,82 @@
-# Auto detect text files and perform LF normalization
+# ==========================================
+# PulseStream Git Attributes & Normalization
+# ==========================================
+
+# Set default behavior to automatically detect text files and perform LF normalization
 * text=auto
+
+# ------------------------------------------
+# 1. Line Endings (Deterministic LF Normalization)
+# ------------------------------------------
+
+# Java and Kotlin Sources
+*.java text eol=lf diff=java
+*.kt text eol=lf
+
+# Database Schemas & SQL Migrations
+*.sql text eol=lf
+
+# Shell Scripts & Shell Tools
+*.sh text eol=lf
+Makefile text eol=lf
+
+# YAML Configurations
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# JSON & XML Assets
+*.json text eol=lf
+*.xml text eol=lf
+
+# JavaScript & Web Assets
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+
+# Properties & Manifests
+*.properties text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+LICENSE text eol=lf
+
+# Container Configurations
+Dockerfile text eol=lf
+
+# ------------------------------------------
+# 2. Binary Classifications (Prevent Diff & Normalization Corruption)
+# ------------------------------------------
+
+# Maven and Java Binaries
+*.jar binary
+*.class binary
+
+# Image Assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+
+# Documents and Archives
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+
+# ------------------------------------------
+# 3. GitHub Linguist Analytics Optimizations
+# ------------------------------------------
+
+# Treat configuration, load tests, scripts, and documentation as non-source assets
+load-tests/** linguist-documentation=true
+docs/** linguist-documentation=true
+config/** linguist-documentation=true
+scripts/** linguist-documentation=true
+Makefile linguist-documentation=true
+CHANGELOG.md linguist-documentation=true
+SECURITY_AUDIT.md linguist-documentation=true
+SECURITY.md linguist-documentation=true
+CONTRIBUTING.md linguist-documentation=true

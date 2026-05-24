@@ -1,5 +1,6 @@
 package com.pulsestream.api.exception;
 
+import com.pulsestream.domain.exception.DuplicateEventException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -51,6 +52,18 @@ public class GlobalExceptionHandler {
                 Instant.now()
         );
         return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(DuplicateEventException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateEvent(DuplicateEventException ex) {
+        log.warn("Duplicate event ingestion: {}", ex.getMessage());
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                "Conflict",
+                ex.getMessage(),
+                Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     @ExceptionHandler(IllegalStateException.class)

@@ -1,36 +1,103 @@
-# Maven
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.next
-pom.xml.versionsBackup
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
-.mvn/wrapper/maven-wrapper.jar
+# =========================
+# AI Agents / Local AI Tooling
+# =========================
+.agents/
+.gemini/
+.cursor/
+.roo/
+.claude/
+.aider*
+.continue/
+.copilot/
+.windsurf/
+.codeium/
+.codex/
 
-# IDEs and Editors
-.idea/
-*.iml
-*.iws
-.classpath
-.project
-.settings/
-.metadata/
-bin/
-tmp/
-*.tmp
-*.bak
-*.swp
-*~
-.DS_Store
+# =========================
+# Local Agent Memory / Context
+# =========================
+memory/
+context/
+sessions/
+prompts/private/
+cache/
+tmp-agent/
 
-# Local Configuration
-.env
-data/
-docker/data/
-
+# =========================
 # Logs
+# =========================
 logs/
 *.log
+
+# =========================
+# Mac / Linux Metadata
+# =========================
+.Trashes
+.Spotlight-V100
+.fseventsd
+
+# =========================
+# Docker Overrides
+# =========================
+docker-compose.override.yml
+
+# =========================
+# Terraform / Infra
+# =========================
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# =========================
+# Kubernetes
+# =========================
+kubeconfig*
+.kube/
+
+# =========================
+# IDE Project Files
+# =========================
+.idea/
+*.iml
+
+# =========================
+# Generated Documentation
+# =========================
+docs/build/
+docs/site/
+
+# =========================
+# Benchmark / Profiling
+# =========================
+benchmarks/results/
+profiling/
+*.hprof
+
+# =========================
+# Test Artifacts
+# =========================
+test-output/
+allure-results/
+allure-report/
+
+# =========================
+# Local Databases
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Archives
+# =========================
+*.zip
+*.tar
+*.gz
+*.rar
+
+# =========================
+# Temporary Scripts
+# =========================
+scratch/
+playground/
+experiments/

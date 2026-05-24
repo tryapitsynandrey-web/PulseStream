@@ -10,9 +10,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      # Docker daemon is automatically active on Ubuntu runners to support Testcontainers
-
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -22,16 +19,27 @@ jobs:
       with:
         java-version: '21'
         distribution: 'temurin'
-        cache: maven
+        cache: 'maven'
 
-    - name: Clean Build and Verify with Maven
-      run: mvn clean verify -B
+    - name: Compile Application
+      run: mvn clean compile -B
 
-    - name: Upload Test Coverage Reports
+    - name: Run Unit Tests
+      run: mvn test -B
+
+    - name: Run Integration Verification
+      run: mvn failsafe:integration-test failsafe:verify -B
+
+    - name: Upload Surefire Test Reports
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results
-        path: |
-          **/target/surefire-reports/*.xml
-          **/target/failsafe-reports/*.xml
+        name: surefire-test-results
+        path: '**/target/surefire-reports/*.xml'
+
+    - name: Upload Failsafe Integration Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: failsafe-integration-results
+        path: '**/target/failsafe-reports/*.xml'

@@ -10,8 +10,19 @@ public record RefundIssuedEvent(
     String paymentId,
     BigDecimal amount,
     String reason,
-    String status
+    String status,
+    Integer schemaVersion
 ) implements DomainEvent {
+
+    public RefundIssuedEvent {
+        if (schemaVersion == null) {
+            schemaVersion = 1;
+        }
+    }
+
+    public RefundIssuedEvent(String eventId, Instant occurredAt, String refundId, String paymentId, BigDecimal amount, String reason, String status) {
+        this(eventId, occurredAt, refundId, paymentId, amount, reason, status, 1);
+    }
 
     @Override
     public String aggregateId() {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 @Component
+@SuppressWarnings("null")
 public class PaymentPersistenceAdapter implements PaymentRepository {
 
     private final SpringDataPaymentRepository repository;

@@ -8,4 +8,8 @@ public sealed interface DomainEvent
     String eventId();
     Instant occurredAt();
     String aggregateId();
+
+    default Integer schemaVersion() {
+        return 1;
+    }
 }

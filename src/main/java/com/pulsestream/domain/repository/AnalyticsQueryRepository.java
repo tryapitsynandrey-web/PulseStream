@@ -13,4 +13,5 @@ public interface AnalyticsQueryRepository {
     List<ProductMetric> findTopProducts(int limit);
     long countUniqueCustomers(Instant start, Instant end);
     List<ActivityMetric> countActivitiesByType(Instant start, Instant end);
+    org.springframework.data.domain.Page<com.pulsestream.application.port.in.MetricsQueryUseCase.IngestedEventInfo> findIngestedEvents(org.springframework.data.domain.Pageable pageable);
 }

@@ -4,6 +4,8 @@ import com.pulsestream.application.port.in.MetricsQueryUseCase;
 import com.pulsestream.domain.repository.AnalyticsQueryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,5 +63,11 @@ public class AnalyticsService implements MetricsQueryUseCase {
     public List<ActivityMetric> getCustomerActivityBreakdown(Instant start, Instant end) {
         log.debug("Fetching activity breakdown from {} to {}", start, end);
         return analyticsQueryRepository.countActivitiesByType(start, end);
+    }
+
+    @Override
+    public Page<IngestedEventInfo> getIngestedEvents(Pageable pageable) {
+        log.debug("Fetching page of ingested events: {}", pageable);
+        return analyticsQueryRepository.findIngestedEvents(pageable);
     }
 }

@@ -11,7 +11,9 @@ public interface MetricsQueryUseCase {
     List<ProductMetric> getTopProducts(int limit);
     long getActiveCustomersCount(Instant start, Instant end);
     List<ActivityMetric> getCustomerActivityBreakdown(Instant start, Instant end);
+    org.springframework.data.domain.Page<IngestedEventInfo> getIngestedEvents(org.springframework.data.domain.Pageable pageable);
 
     record ProductMetric(String productId, long quantitySold, BigDecimal revenue) {}
     record ActivityMetric(String activityType, long count) {}
+    record IngestedEventInfo(String eventId, String eventType, Instant occurredAt, String payload) {}
 }

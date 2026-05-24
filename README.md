@@ -1,259 +1,269 @@
 # PulseStream — Real-Time Event-Driven Business Analytics Platform
 
-[![Java 21](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
-[![Spring Boot 3.2.5](https://img.shields.io/badge/Spring_Boot-3.2.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-29092-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)](https://kafka.apache.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Docker_Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![CI Status](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](#cicd)
+[![Java 21](https://img.shields.io/badge/Java-21-orange.svg?style=flat-square&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.2.5-brightgreen.svg?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
+[![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-7.5.0-black.svg?style=flat-square&logo=apachekafka)](https://kafka.apache.org/)
+[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16--alpine-blue.svg?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-PulseStream is a production-grade, highly aesthetic event-driven business analytics platform. It ingests raw business transactions, streams them asynchronously through Kafka, persists normalized models in PostgreSQL, and serves highly optimized analytical metrics via secure APIs.
+PulseStream is a production-grade, highly observable, event-driven business analytics platform engineered with **Java 21**, **Spring Boot 3**, **Apache Kafka**, and **PostgreSQL 16**.
+
+Designed as a high-fidelity **engineering portfolio project**, PulseStream showcases advanced distributed systems reliability, **Hexagonal / Clean Architecture (Ports & Adapters)**, transactional event-sourcing consistency, **JWT authentication with Role-Based Access Control (RBAC)**, fault-tolerant **Dead Letter Queue (DLQ)** recovery pipelines, and complete **OpenTelemetry (OTEL) distributed tracing** backed by **Prometheus** and **Grafana**.
 
 ---
 
-## 🏗️ Architecture Overview (Clean Architecture / DDD)
+## 🏗️ System Blueprint & Distributed Topology
 
-PulseStream implements a strict **Clean Architecture** combined with **Domain-Driven Design (DDD)** principles and a **CQRS (Command Query Responsibility Segregation) Lite** streaming loop. This separates transactional write throughput (Commands) from heavy analytical reads (Queries).
+PulseStream implements a high-throughput **Command Query Responsibility Segregation (CQRS-Lite)** topology. Inbound write operations (commands) are processed asynchronously through a transactional outbox queue, while heavy aggregate analytics (queries) execute against index-hardened PostgreSQL tables protected by a Resilience4j fault tolerance layer.
+
+### 1. High-Fidelity System Architecture
 
 ```mermaid
 graph TD
-    %% Clients
-    C[Client App / Postman] -->|1. Ingest Event POST| Controller[REST Ingestion Controller]
-    C -->|5. Query Metrics GET| Analytics[REST Analytics Controller]
+    Client[REST API Client / k6 / JMeter] -->|HTTPS POST| IngestionGW[Event Ingestion Gateway<br/>EventIngestionController]
+    Client -->|HTTPS GET| AnalyticsEngine[Analytics & Metrics Engine<br/>AnalyticsController]
 
-    %% Ingestion Flow
-    subgraph "API & Security Layer"
-        Controller -->|Validate DTO| Security[Spring Security JWT Filter]
+    subgraph Spring Boot 3 Core Service [PulseStream Application]
+        IngestionGW -->|Orchestrates Command| IngestionUseCase[IngestEventUseCase<br/>EventIngestionService]
+        IngestionUseCase -->|Transactional Save| IngestedEventRepo[IngestedEventRepository]
+        IngestionUseCase -->|Transactional Save| OutboxPublisher[EventPublisher<br/>OutboxEventPublisher]
+
+        OutboxScheduler[OutboxProcessor<br/>@Scheduled Background Poll] -->|Fetch PENDING| OutboxRepo[SpringDataOutboxRepository]
+        OutboxScheduler -->|Publish Event| KafkaPublisher[KafkaEventPublisher]
+
+        AnalyticsEngine -->|Query Metrics| MetricsUseCase[MetricsQueryUseCase<br/>AnalyticsService]
+        MetricsUseCase -->|Optimized Fetch| AnalyticsRepo[AnalyticsQueryRepository<br/>AnalyticsQueryPersistenceAdapter]
     end
 
-    subgraph "Application Core"
-        Security -->|Domain Events| Service[Event Ingestion Service]
-        Service -->|Publish| PublisherPort[Event Publisher Outbound Port]
+    subgraph Relational Database [PostgreSQL 16]
+        IngestedEventRepo -->|Deduplicate & Log| IngestedEventsTable[(ingested_events)]
+        OutboxPublisher -->|Save Outbox Event| OutboxEventsTable[(outbox_events)]
+        OutboxRepo -->|Read/Update Status| OutboxEventsTable
+        AnalyticsRepo -->|Query Aggregates| OrdersTable[(orders)]
+        AnalyticsRepo -->|Query Aggregates| PaymentsTable[(payments)]
+        AnalyticsRepo -->|Query Aggregates| RefundsTable[(refunds)]
     end
 
-    subgraph "Infrastructure Messaging"
-        PublisherPort -->|Send JSON| KafkaProducer[Kafka Producer Adapter]
-        KafkaProducer -->|Topic: order-created| Broker[Kafka Broker]
+    subgraph Event Broker [Kafka Broker]
+        KafkaPublisher -->|At-Least-Once Send| KafkaTopics[[Kafka Event Topics<br/>order-created / payment-confirmed]]
     end
-
-    %% Consumption Loop
-    subgraph "Infrastructure Async Consumption"
-        Broker -->|Consume Event| KafkaConsumer[Kafka Consumers]
-        KafkaConsumer -->|2. Log raw JSON| AuditLog[(ingested_events Audit Table)]
-        KafkaConsumer -->|3. Persist Normalized| RepoAdapter[Persistence Adapters]
-    end
-
-    subgraph "Database & Storage"
-        RepoAdapter -->|4. Update State| ReadDB[(PostgreSQL DB)]
-        Analytics -->|Read Aggregates| ReadDB
-    end
-
-    style C fill:#f9f,stroke:#333,stroke-width:2px
-    style Broker fill:#ff9,stroke:#333,stroke-width:2px
-    style ReadDB fill:#bbf,stroke:#333,stroke-width:2px
-    style AuditLog fill:#fbb,stroke:#333,stroke-width:2px
 ```
 
-### 📂 Directory & Package Structure
+### 2. Hexagonal Clean Architecture Structural Rings
+
+The system strictly enforces the dependency inversion rule: **Domain (Pure Core) ➔ Application (Use Cases) ➔ Infrastructure (Adapters)**.
+
 ```text
-PulseStream/
-├── .github/
-│   └── workflows/
-│       └── ci.yml               # Automated GitHub Actions Workflow
-├── config/
-│   ├── prometheus/
-│   │   └── prometheus.yml       # Prometheus Metrics Scraper settings
-│   └── grafana/
-│       └── provisioning/        # Auto-provisioned Grafana templates
-├── docker-compose.yml           # Postgres, Kafka, Prometheus & Grafana Bootstrapper
-├── .env.example                 # Environment Configurations
-├── .gitignore                   # Safe Git Ignored Artifacts
-├── pom.xml                      # Maven Configuration
-└── src/
-    ├── main/
-    │   ├── java/com/pulsestream/
-    │   │   ├── PulseStreamApplication.java
-    │   │   ├── api/             # REST Controllers, Exception mapping & DTO Records
-    │   │   ├── application/     # Inbound/Outbound Ports, Use Cases & Services
-    │   │   ├── domain/          # Pure Domain Entities, Events & Repository interfaces
-    │   │   ├── infrastructure/  # JPA Entities, Kafka Producers/Consumers & Flyway DB
-    │   │   ├── config/          # Kafka Topic & OpenAPI/Swagger configurations
-    │   │   ├── security/        # Spring Security Filters, UserDetailsService & JWT provider
-    │   │   └── observability/   # CorrelationId filters, structured logs & Micrometer
-    │   └── resources/
-    │       ├── db/migration/    # Flyway Migrations (Schema & User seeding)
-    │       ├── application.yml  # Externalised App Configurations
-    │       └── logback-spring.xml # Request-Correlated Console Logging Layout
-    └── test/                    # JUnit 5 & Testcontainers Integration Test Suite
+PulseStream Core (Hexagonal Rings)
+┌────────────────────────────────────────────────────────┐
+    Infrastructure Layer (Outer Ring)
+    [JPA Entities] [Kafka Producer/Consumers] [Security]
+    [Spring Boot Controllers] [Swagger UI / Actuator]
+          │
+          ▼
+    ┌──────────────────────────────────────────────────┐
+    │  Application Layer (Use Cases / Service Core)    │
+    │  [IngestEventUseCase] [MetricsQueryUseCase]       │
+    │  [EventPublisher Port] [AnalyticsQueryPort]       │
+    │        │                                         │
+    │        ▼                                         │
+    │  ┌────────────────────────────────────────────┐  │
+    │  │  Domain Layer (Pure Center Ring)           │  │
+    │  │  [Order] [Payment] [Refund] [Activity]      │  │
+    │  │  [DomainEvent] [Repository Ports]          │  │
+    │  └────────────────────────────────────────────┘  │
+    └──────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────┘
 ```
+
+- **Domain Core (Pure Center)**: Contains business entities, invariants, custom constraints, and interface definitions. Contains **zero external library dependencies** (no Spring, Hibernate, or Jackson annotations), ensuring portability and clean technical boundaries.
+- **Application Orchestration (Middle Ring)**: Declares input/output ports (interfaces) and implements application use cases. Manages latency telemetry boundaries using Micrometer timer samplers.
+- **Infrastructure Adapters (Outer Ring)**: Handles persistence mappers, Kafka record headers, JWT token parsing, and REST controllers.
 
 ---
 
-## 🚦 Transactional Event Flow
+## 🛡️ Reliability Engineering & Fault Tolerance
 
-The system processes events in a robust asynchronous pipeline:
+PulseStream goes beyond standard tutorial projects by implementing absolute **at-least-once** delivery guarantees, idempotent event ingestion, and resilient query circuit breakers.
 
-1. **Ingest & Validate**: A client submits a payload (e.g. `POST /api/v1/events/orders`). Spring Security verifies the JWT, and JSR-380 validates the payload.
-2. **Immediate Publish**: The event is mapped into a Domain Event and immediately pushed onto Kafka. The client gets a `202 Accepted` response alongside a generated `eventId`.
-3. **Audit Log & Consolidation**: A Kafka Consumer picks up the event, logs the raw JSON into the `ingested_events` table for auditability/sourcing, and saves the normalized model into database tables.
-4. **Calculations**: Secure analytics endpoints read from the index-optimized SQL tables.
+### 1. Transactional Outbox Pattern
+
+To prevent dual-write failures (where database persistence succeeds but Kafka broker publishing fails, or vice-versa), PulseStream isolates Kafka dispatches behind a **Transactional Outbox** mechanism.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Client / API Caller
+    participant Controller as EventIngestionController
+    participant Service as EventIngestionService
+    participant DB as PostgreSQL Database
+    participant OutboxPublisher as OutboxEventPublisher
+    participant OutboxScheduler as OutboxProcessor
+    participant Broker as Kafka Broker
+
+    Client->>Controller: POST /api/v1/events/orders (with X-Event-Id)
+    Controller->>Service: ingestOrder(OrderCommand)
+
+    Note over Service, DB: Database Transaction BEGINS
+
+    Service->>DB: Check if Event ID exists (existsById)
+    alt Event ID is duplicate
+        DB-->>Service: Event ID exists
+        Service-->>Controller: Throw DuplicateEventException
+        Controller-->>Client: 409 Conflict Response
+    else Event ID is unique
+        DB-->>Service: Event ID is unique
+        Service->>OutboxPublisher: publish(OrderCreatedEvent)
+        OutboxPublisher->>DB: Save OutboxEventEntity (PENDING)
+        Service->>DB: Log IngestedEventEntity (Audit log)
+        Note over Service, DB: Database Transaction COMMITS
+        Service-->>Controller: Return IngestionResult
+        Controller-->>Client: 202 Accepted Response
+    end
+
+    Note over OutboxScheduler, Broker: Asynchronous Processing Loop
+    loop Every 100ms
+        OutboxScheduler->>DB: Fetch top 50 PENDING records
+        DB-->>OutboxScheduler: List of OutboxEventEntity
+        loop For each event record
+            OutboxScheduler->>Broker: Send record (KafkaEventPublisher)
+            Broker-->>OutboxScheduler: Send Acknowledged (ACK)
+            OutboxScheduler->>DB: Update status to PROCESSED & processedAt
+        end
+    end
+```
+
+- **ACID Transaction Guarantee**: When an operational endpoint is hit, deduplication, audit-logging, and outbox record insertion execute inside a single `@Transactional` boundary.
+- **Background Dispatcher**: A thread-safe background `OutboxProcessor` continuously polls pending events from `outbox_events` table ordered by creation time, publishes them asynchronously to Kafka via a Resilience4j protected publisher, and transitions records to `PROCESSED`.
+- **Fault Resilience**: If a broker failure occurs, the scheduler retries dispatching up to 5 times using exponential backoff wait durations. If still unsuccessful, the outbox record transitions to `FAILED` with logged error context for developer review, eliminating silent failures.
+
+### 2. Idempotent Ingestion Deduplication
+
+API clients can supply a unique transaction tracking identifier via the HTTP header `X-Event-Id`.
+- **Double-Pass Deduplication**: The ingestion controller intercepts this value and calls the `IngestedEventRepository.existsById()` lookup. If it is already marked processed, the engine throws a `DuplicateEventException`, which is seamlessly caught by the `GlobalExceptionHandler` returning an HTTP `409 Conflict` response.
+- **Deduplication Telemetry**: Failed duplicate ingestions increment a dedicated Micrometer metric `pulsestream.events.ingestion.failed.total` tagged with `failureType="DUPLICATE_EVENT"`.
+
+### 3. Event Schema Evolution (Versioning)
+
+To support robust long-term schema evolutions, domain events declare a version contract:
+- **Default Version Interface**: The `DomainEvent` sealed interface specifies `default Integer schemaVersion() { return 1; }`.
+- **Backward-Compatible Record Deserialization**: Record types (like `OrderCreatedEvent`) declare `Integer schemaVersion` as their final parameter. Using a compact record constructor `if (schemaVersion == null) { this.schemaVersion = 1; }`, older version-less JSON logs (e.g. from historical data files or replayed streams) deserialize flawlessly with default version `1`.
+
+### 4. Resilience4j Circuit Breakers & Retries
+
+PulseStream implements programmatic fault tolerance to avoid thread resource starvation:
+- **Kafka Broker Retry**: `KafkaEventPublisher` is annotated with `@Retry(name = "kafkaPublish")`, configured to perform up to 3 attempts with exponential backoff on transient broker dropouts.
+- **Database Analytics Protection**: The heavy-duty `AnalyticsQueryPersistenceAdapter` is protected by class-level `@CircuitBreaker(name = "databaseAnalytics")` and `@Retry(name = "databaseAnalytics")` annotations. If connection pool saturation or lockups occur, queries fail-fast, preventing thread leaks and cascading performance bottlenecks.
 
 ---
 
-## ⚡ Core Features & API Documentation
+## ⚡ API Specifications & Functional Endpoints
 
-### 🔑 1. Authentication Endpoint
-To retrieve a stateless JWT token, exchange pre-seeded credentials at the Auth Controller:
-* **Route**: `POST /api/v1/auth/token`
-* **Pre-Seeded Accounts (Password for all is `password`)**:
-  * `admin` (Role: `ROLE_ADMIN` - Permitted to ingest events and query metrics)
-  * `analyst` (Role: `ROLE_ANALYST` - Permitted to query metrics only)
-  * `user` (Role: `ROLE_USER` - Restricted basic access)
+All operational and analytical endpoints require Bearer JWT authentication.
 
-* **Request Payload**:
-```json
-{
-  "username": "admin",
-  "password": "password"
-}
-```
-* **Response Payload**:
-```json
-{
-  "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIs...",
-  "tokenType": "Bearer"
-}
-```
+### 🔑 1. JWT Authentication
+- **Endpoint**: `POST /api/v1/auth/token`
+- **Pre-Seeded Directory (Password: `password` for all)**:
+  - `admin` (Role: `ROLE_ADMIN` — Permitted to ingest events and read metrics)
+  - `analyst` (Role: `ROLE_ANALYST` — Permitted to query metrics (read-only))
+  - `user` (Role: `ROLE_USER` — Restricted basic credentials)
 
-### 📥 2. Event Ingestion API (Requires `ROLE_ADMIN`)
-All ingestion endpoints validate metrics and push directly to Kafka, returning a `202 Accepted` response.
+### 📥 2. Real-Time Ingestion Gateway (Requires `ROLE_ADMIN`)
+All ingestion endpoints return a `202 Accepted` immediately upon successfully committing the event to the transactional outbox queue.
 
-| Method | Endpoint | Description | Kafka Topic |
-|:---|:---|:---|:---|
-| **POST** | `/api/v1/events/orders` | Ingests a new customer purchase event | `order-created` |
-| **POST** | `/api/v1/events/payments` | Ingests payment confirmation from gateway | `payment-confirmed` |
-| **POST** | `/api/v1/events/refunds` | Ingests refund reversals | `refund-issued` |
-| **POST** | `/api/v1/events/activity` | Logs user clicks, views, and logins | `activity-detected` |
+- **POST `/api/v1/events/orders`** — Ingest customer order creation.
+- **POST `/api/v1/events/payments`** — Ingest payment gateway confirmation logs.
+- **POST `/api/v1/events/refunds`** — Ingest refund execution triggers.
+- **POST `/api/v1/events/activity`** — Ingest client interaction activities.
 
-* **Example Ingestion Request (`POST /api/v1/events/orders`)**:
-```json
-{
-  "customerId": "cust-999",
-  "productId": "prod-456",
-  "quantity": 3,
-  "price": 25.50
-}
-```
-* **Example Ingestion Response**:
-```json
-{
-  "eventId": "d04a6217-15ef-4d40-aa75-a83d3e6db8f0",
-  "resourceId": "c88f121d-4001-4475-aa2b-b83c4e6db5f1",
-  "status": "ACCEPTED",
-  "timestamp": "2026-05-24T16:00:00Z"
-}
-```
+*Optional Header*: `X-Event-Id` (UUID string) — Enforces idempotency.
 
-### 📊 3. Analytics API (Requires `ROLE_ADMIN` or `ROLE_ANALYST`)
-Exposes database-optimized metrics calculations with optional parameters `start` and `end` (ISO formatted). If omitted, defaults to a **30-day historical window**.
+### 📊 3. Analytical Engine (Requires `ROLE_ADMIN` or `ROLE_ANALYST`)
+Retrieves analytical aggregates over a default 30-day sliding time window (customizable via `start` and `end` ISO-8601 query parameters).
 
-| Method | Endpoint | Return Data Structure | Description |
-|:---|:---|:---|:---|
-| **GET** | `/api/v1/metrics/revenue` | `{"revenue": 100.50, ...}` | Sums total amount of all `COMPLETED` orders |
-| **GET** | `/api/v1/metrics/orders` | `{"count": 152, ...}` | Counts total orders registered in the system |
-| **GET** | `/api/v1/metrics/refunds` | `{"amount": 15.00, ...}` | Sums total value of all approved refunds |
-| **GET** | `/api/v1/metrics/active-customers` | `{"activeCustomers": 45, ...}` | Unique customers registered in activities log |
-| **GET** | `/api/v1/metrics/top-products` | `[{"productId": "prod-1", "quantitySold": 5, "revenue": 125.00}]` | List of top selling products by volume |
-| **GET** | `/api/v1/metrics/customer-activity` | `[{"activityType": "VIEW_PRODUCT", "count": 234}]` | Activity logs grouping count by action |
+- **GET `/api/v1/metrics/revenue`** — Sum of all completed order amounts.
+- **GET `/api/v1/metrics/orders`** — Total order volume.
+- **GET `/api/v1/metrics/refunds`** — Sum of approved refund values.
+- **GET `/api/v1/metrics/top-products?limit=5`** — Ranked list of best-selling products.
+- **GET `/api/v1/metrics/customer-activity`** — Distribution of customer activities by action type.
+- **GET `/api/v1/metrics/events?page=0&size=10`** — **Paginated Event Log** query plan pulling historic event logs.
 
 ---
 
-## 🛠️ Installation & Setup
+## 👁️ Distributed Observability & Telemetry
 
-### ⚙️ Prerequisites
-* **Java 21 JDK** (e.g. Eclipse Temurin / OpenJDK)
-* **Docker & Docker Compose** (running locally)
-* **Maven** (to compile and test locally)
+PulseStream features a production-grade observability topology using standard CNCF technologies:
 
-### 🐳 1. Docker Cluster Bootstrap
-In the project root, launch the integrated Docker Compose cluster containing PostgreSQL, Kafka, Prometheus, and Grafana:
+```mermaid
+graph LR
+    App[PulseStream Service] -->|Actuator /prometheus| Prom[Prometheus Scraper]
+    App -->|OTLP/gRPC Traces| OTELCol[OpenTelemetry Collector]
+    OTELCol -->|Forward Spans| Jaeger[Jaeger Distributed Tracing]
+    Prom -->|Scrape Endpoint| Grafana[Grafana Dashboard UI]
+```
+
+### 1. Prometheus Scrape Configuration
+Prometheus automatically scrapes the Spring Boot Actuator endpoint at `/actuator/prometheus` on a 5-second interval, capturing JVM performance, Kafka topic latency lag, and custom Micrometer timers.
+
+### 2. OpenTelemetry & Jaeger Tracing
+When a request hits `EventIngestionController`, a correlation ID is extracted (or generated) and injected into MDC thread logging. OpenTelemetry interceptors trace HTTP operations, PostgreSQL JDBC queries, and outbox poll scheduler threads. Traces export to Jaeger on port `16686`, offering full visual deep-dives into call stacks.
+
+### 3. Auto-Provisioned Grafana Dashboard
+Grafana is pre-configured with default datasource registries. It automatically loads our system health metrics dashboard (`PulseStream Distributed Performance Monitor`) displaying:
+- Event Ingestion Throughput by event type.
+- Ingestion SLA latencies (p95 and p99 percentile thresholds).
+- Database persistence execution timings.
+- Outbox processing latency percentiles.
+
+---
+
+## 🛠️ Local Development & Operational Setup
+
+### Prerequisites
+- **Java 21 / JDK 21**
+- **Docker Desktop**
+- **k6** (optional, for running load benchmark scripts)
+
+### 🚀 1. Booting Infrastructure Services
+To spin up PostgreSQL, Zookeeper, Kafka, Prometheus, Jaeger, and Grafana in the background:
 ```bash
-docker-compose up -d --build
+docker compose up -d
 ```
-Verify that the containers are healthy:
+Check health states:
+- PostgreSQL is available at `localhost:5432`
+- Prometheus is running at `localhost:9090`
+- Jaeger Tracing is running at `localhost:16686`
+- Grafana Dashboard UI is running at `localhost:3000`
+
+### 🧪 2. Running Verification Pipelines
+Execute the fail-fast validation script (verifies maven compile, static analysis warnings, and launches Testcontainers integration tests):
 ```bash
-docker ps
+./scripts/verify.sh
 ```
 
-### 🏃 2. Booting the Application
-Set up the environment template by copying `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-Run the Spring Boot application using Maven:
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-```
-The application will boot on port `8080` and run Flyway migrations, automatically seeding users.
+### 📊 3. Benchmarking with k6 Load Tests
+PulseStream includes realistic k6 stress testing scripts inside the `load-tests/` directory:
+- Run the high-throughput ingestion stress benchmark:
+  ```bash
+  k6 run load-tests/ingestion-stress.js
+  ```
+- Run the concurrent analytics endpoints query stress benchmark:
+  ```bash
+  k6 run load-tests/analytics-stress.js
+  ```
 
 ---
 
-## 🧪 Testing Strategy (Isolated Integration Testing)
+## ⚖️ Distributed Tradeoffs & Limitations
 
-PulseStream implements a dual testing strategy to guarantee production-ready business logic and infrastructure operations:
-
-### 1. Unit Testing
-Mocking is heavily used via JUnit 5 and Mockito to validate service layer invariants, payload validations, exception handling, and domain state alterations.
-* **To run Unit Tests**:
-```bash
-mvn test
-```
-
-### 2. Testcontainers Integration Tests
-PulseStream implements **Testcontainers** to verify database schemas and streaming integrations.
-* **`PostgresqlIntegrationTest.java`**: Spins up a real, ephemeral PostgreSQL container, boots Flyway migrations, seeds security credentials, saves entities, and runs native query calculation aggregations.
-* **`KafkaIntegrationTest.java`**: Boots an isolated Confluent Kafka broker, publishes messages, consumes them asynchronously, and asserts that consolidated relational changes appear accurately in PostgreSQL.
+1. **Transactional Outbox Polling vs Change Data Capture (CDC)**: PulseStream uses a `@Scheduled` background worker polling the database `outbox_events` table. While highly cohesive and easy to run in a single container, a high polling rate creates read query overhead on PostgreSQL.
+2. **Kafka Partition Level Ordering**: Since events are dispatched asynchronously via outbox scheduler polling, partition keys must align with aggregation IDs (`orderId`, etc.) to preserve transaction sequence integrity during high consumer workloads.
+3. **Pessimistic vs Optimistic Locking on Metrics Aggregation**: Analytical aggregates execute real-time Hibernate query aggregates over temporal fields. In standard read-heavy environments, this pattern scales best when paired with Read-Replicas or materialized analytical views rather than transactional databases.
 
 ---
 
-## 👁️ Observability & Metrics
+## 🚀 Scaling & Evolution Roadmap
 
-PulseStream implements comprehensive production-grade telemetry:
-
-### 1. Request Correlation Tracing
-The custom `CorrelationIdFilter` intercepts incoming calls. It extracts or generates a unique `X-Correlation-Id`, registering it in the SLF4J **MDC (Mapped Diagnostic Context)**. Logback is configured to automatically print this ID alongside every log line, and injects it back in the HTTP response headers for rapid developer troubleshooting.
-```text
-2026-05-24 16:00:05.123  INFO [http-nio-8080-exec-1] c.p.a.c.EventIngestionController - [Corr: d04a6217-15ef] - REST Ingesting Order: orderId=123, eventId=456
-```
-
-### 2. Spring Actuator & Prometheus
-Spring Actuator metrics are fully mapped under:
-* **Health Check**: `http://localhost:8080/actuator/health`
-* **Prometheus Metrics**: `http://localhost:8080/actuator/prometheus`
-
-Prometheus scrapes these details every 5 seconds. Connect to Prometheus at `http://localhost:9090`.
-
-### 3. Grafana Custom Dashboard
-Connect to Grafana at `http://localhost:3000`. Grafana allows anonymous Admin access for rapid developer testing.
-
----
-
-## 🚀 CI/CD Pipeline
-
-The project implements a complete **GitHub Actions** integration checking quality gates.
-The workflow file [ci.yml](.github/workflows/ci.yml) triggers on every push and pull request to `main`/`master` branches:
-1. Boots a secure runner with Java 21 JDK Temurin.
-2. Checks Maven caching.
-3. Automatically spins up **Testcontainers** (PostgreSQL and Kafka brokers).
-4. Runs `mvn clean verify` validating unit and integration tests.
-5. Uploads test coverage reports.
-
----
-
-## 🗺️ Scaling Roadmap & Production Enhancements
-
-In a real-world enterprise scaling scenario, the following improvements are recommended:
-1. **Schema Partitioning**: Partition the PostgreSQL `customer_activities` table by day/week intervals to guarantee rapid queries over massive datasets.
-2. **Debezium CDC (Change Data Capture)**: Replace direct consumer writing with Debezium listening to database transaction write-ahead logs (WAL) to implement zero-loss transactional outbox patterns.
-3. **Kafka Schema Registry**: Implement Avro or Protobuf serialization backed by Confluent Schema Registry to manage event evolution securely.
-4. **Redis Read Caching**: Cache analytical query results on a Redis layer with brief TTLs to offload heavy analytics from transactional read-replicas.
+- **Debezium CDC (Change Data Capture)**: Migrate the outbox scheduler to an asynchronous transaction log reader like Debezium, bypassing database select query overhead and streaming changes straight to Kafka.
+- **Cache-Layer Analytics**: Introduce Redis caching to store analytics query outcomes (e.g. `sumRevenue` or `top-products`) with dynamic TTL invalidation triggered by incoming Kafka topic consumer updates.
+- **Schema Registry Integration**: Replace raw JSON event payloads with strict Avro serialization schemas integrated into a Confluent Schema Registry.

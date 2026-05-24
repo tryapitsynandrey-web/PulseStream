@@ -3,26 +3,37 @@ package com.pulsestream.infrastructure.persistence.adapter;
 import com.pulsestream.application.port.in.MetricsQueryUseCase.ActivityMetric;
 import com.pulsestream.application.port.in.MetricsQueryUseCase.ProductMetric;
 import com.pulsestream.domain.repository.AnalyticsQueryRepository;
+import com.pulsestream.application.port.in.MetricsQueryUseCase.IngestedEventInfo;
+import com.pulsestream.infrastructure.persistence.entity.IngestedEventEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
+@CircuitBreaker(name = "databaseAnalytics")
+@Retry(name = "databaseAnalytics")
+@SuppressWarnings("null")
 public class AnalyticsQueryPersistenceAdapter implements AnalyticsQueryRepository {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
+
+    public AnalyticsQueryPersistenceAdapter(EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
 
     @Override
     public BigDecimal sumRevenue(Instant start, Instant end) {
-        String sql = "SELECT SUM(o.totalAmount) FROM OrderEntity o WHERE o.status = 'COMPLETED' AND o.createdAt BETWEEN :start AND :end";
-        TypedQuery<BigDecimal> query = entityManager.createQuery(sql, BigDecimal.class);
+        String jpql = "SELECT SUM(o.totalAmount) FROM OrderEntity o WHERE o.status = 'COMPLETED' AND o.createdAt BETWEEN :start AND :end";
+        TypedQuery<BigDecimal> query = entityManager.createQuery(jpql, BigDecimal.class);
         query.setParameter("start", start);
         query.setParameter("end", end);
         BigDecimal result = query.getSingleResult();
@@ -31,8 +42,8 @@ public class AnalyticsQueryPersistenceAdapter implements AnalyticsQueryRepositor
 
     @Override
     public long countOrders(Instant start, Instant end) {
-        String sql = "SELECT COUNT(o.id) FROM OrderEntity o WHERE o.createdAt BETWEEN :start AND :end";
-        TypedQuery<Long> query = entityManager.createQuery(sql, Long.class);
+        String jpql = "SELECT COUNT(o.id) FROM OrderEntity o WHERE o.createdAt BETWEEN :start AND :end";
+        TypedQuery<Long> query = entityManager.createQuery(jpql, Long.class);
         query.setParameter("start", start);
         query.setParameter("end", end);
         Long result = query.getSingleResult();
@@ -41,8 +52,8 @@ public class AnalyticsQueryPersistenceAdapter implements AnalyticsQueryRepositor
 
     @Override
     public BigDecimal sumRefunds(Instant start, Instant end) {
-        String sql = "SELECT SUM(r.amount) FROM RefundEntity r WHERE r.status <> 'REJECTED' AND r.createdAt BETWEEN :start AND :end";
-        TypedQuery<BigDecimal> query = entityManager.createQuery(sql, BigDecimal.class);
+        String jpql = "SELECT SUM(r.amount) FROM RefundEntity r WHERE r.status <> 'REJECTED' AND r.createdAt BETWEEN :start AND :end";
+        TypedQuery<BigDecimal> query = entityManager.createQuery(jpql, BigDecimal.class);
         query.setParameter("start", start);
         query.setParameter("end", end);
         BigDecimal result = query.getSingleResult();
@@ -66,13 +77,13 @@ public class AnalyticsQueryPersistenceAdapter implements AnalyticsQueryRepositor
                         (Long) row[1],
                         (BigDecimal) row[2]
                 ))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public long countUniqueCustomers(Instant start, Instant end) {
-        String sql = "SELECT COUNT(DISTINCT a.customerId) FROM CustomerActivityEntity a WHERE a.createdAt BETWEEN :start AND :end";
-        TypedQuery<Long> query = entityManager.createQuery(sql, Long.class);
+        String jpql = "SELECT COUNT(DISTINCT a.customerId) FROM CustomerActivityEntity a WHERE a.createdAt BETWEEN :start AND :end";
+        TypedQuery<Long> query = entityManager.createQuery(jpql, Long.class);
         query.setParameter("start", start);
         query.setParameter("end", end);
         Long result = query.getSingleResult();
@@ -95,6 +106,24 @@ public class AnalyticsQueryPersistenceAdapter implements AnalyticsQueryRepositor
                         (String) row[0],
                         (Long) row[1]
                 ))
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    @Override
+    public Page<IngestedEventInfo> findIngestedEvents(Pageable pageable) {
+        String countJpql = "SELECT COUNT(e.eventId) FROM IngestedEventEntity e";
+        Long total = entityManager.createQuery(countJpql, Long.class).getSingleResult();
+
+        String jpql = "SELECT e FROM IngestedEventEntity e ORDER BY e.occurredAt DESC";
+        List<IngestedEventEntity> entities = entityManager.createQuery(jpql, IngestedEventEntity.class)
+                .setFirstResult((int) pageable.getOffset())
+                .setMaxResults(pageable.getPageSize())
+                .getResultList();
+
+        List<IngestedEventInfo> list = entities.stream()
+                .map(e -> new IngestedEventInfo(e.getEventId(), e.getEventType(), e.getOccurredAt(), e.getPayload()))
+                .toList();
+
+        return new PageImpl<>(list, pageable, total != null ? total : 0L);
     }
 }

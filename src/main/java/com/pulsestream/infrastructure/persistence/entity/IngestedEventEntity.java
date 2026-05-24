@@ -21,6 +21,7 @@ public class IngestedEventEntity {
     private Instant occurredAt;
 
     @Column(name = "payload", nullable = false, columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String payload;
 
     public IngestedEventEntity() {}
