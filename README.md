@@ -20,32 +20,27 @@ PulseStream implements a high-throughput **Command Query Responsibility Segregat
 
 ```mermaid
 graph TD
-    Client[REST API Client / k6 / JMeter] -->|HTTPS POST| IngestionGW[Event Ingestion Gateway<br/>EventIngestionController]
-    Client -->|HTTPS GET| AnalyticsEngine[Analytics & Metrics Engine<br/>AnalyticsController]
+    Client["REST API Client / k6 / JMeter"] -->|"HTTPS POST"| IngestionGW["Event Ingestion Gateway<br/>EventIngestionController"]
+    Client -->|"HTTPS GET"| AnalyticsEngine["Analytics & Metrics Engine<br/>AnalyticsController"]
 
-    subgraph Spring Boot 3 Core Service [PulseStream Application]
-        IngestionGW -->|Orchestrates Command| IngestionUseCase[IngestEventUseCase<br/>EventIngestionService]
-        IngestionUseCase -->|Transactional Save| IngestedEventRepo[IngestedEventRepository]
-        IngestionUseCase -->|Transactional Save| OutboxPublisher[EventPublisher<br/>OutboxEventPublisher]
+    subgraph App["PulseStream Application - Spring Boot 3"]
+        IngestionGW -->|"Orchestrates Command"| IngestionUseCase["IngestEventUseCase<br/>EventIngestionService"]
+        IngestionUseCase -->|"Transactional Save"| IngestedEventRepo["IngestedEventRepository"]
+        IngestionUseCase -->|"Publish Event"| EventPublisher["EventPublisher"]
 
-        OutboxScheduler[OutboxProcessor<br/>@Scheduled Background Poll] -->|Fetch PENDING| OutboxRepo[SpringDataOutboxRepository]
-        OutboxScheduler -->|Publish Event| KafkaPublisher[KafkaEventPublisher]
-
-        AnalyticsEngine -->|Query Metrics| MetricsUseCase[MetricsQueryUseCase<br/>AnalyticsService]
-        MetricsUseCase -->|Optimized Fetch| AnalyticsRepo[AnalyticsQueryRepository<br/>AnalyticsQueryPersistenceAdapter]
+        AnalyticsEngine -->|"Query Metrics"| MetricsUseCase["MetricsQueryUseCase<br/>AnalyticsService"]
+        MetricsUseCase -->|"Optimized Fetch"| AnalyticsRepo["AnalyticsQueryRepository<br/>AnalyticsQueryPersistenceAdapter"]
     end
 
-    subgraph Relational Database [PostgreSQL 16]
-        IngestedEventRepo -->|Deduplicate & Log| IngestedEventsTable[(ingested_events)]
-        OutboxPublisher -->|Save Outbox Event| OutboxEventsTable[(outbox_events)]
-        OutboxRepo -->|Read/Update Status| OutboxEventsTable
-        AnalyticsRepo -->|Query Aggregates| OrdersTable[(orders)]
-        AnalyticsRepo -->|Query Aggregates| PaymentsTable[(payments)]
-        AnalyticsRepo -->|Query Aggregates| RefundsTable[(refunds)]
+    subgraph DB["PostgreSQL 16"]
+        IngestedEventRepo -->|"Deduplicate & Log"| IngestedEventsTable[("ingested_events")]
+        AnalyticsRepo -->|"Query Aggregates"| OrdersTable[("orders")]
+        AnalyticsRepo -->|"Query Aggregates"| PaymentsTable[("payments")]
+        AnalyticsRepo -->|"Query Aggregates"| RefundsTable[("refunds")]
     end
 
-    subgraph Event Broker [Kafka Broker]
-        KafkaPublisher -->|At-Least-Once Send| KafkaTopics[[Kafka Event Topics<br/>order-created / payment-confirmed]]
+    subgraph Kafka["Kafka Broker"]
+        EventPublisher -->|"At-least-once event send"| KafkaTopics["Kafka Event Topics<br/>order-created / payment-confirmed / refund-issued / activity-detected"]
     end
 ```
 
