@@ -34,7 +34,7 @@ class EventIngestionServiceTest {
     @Test
     void shouldIngestValidOrderEventSuccessfully() {
         IngestEventUseCase.OrderCommand command = new IngestEventUseCase.OrderCommand(
-                "event-1",
+                "test-correlation-id",
                 "order-1",
                 "customer-1",
                 "product-1",
@@ -53,7 +53,7 @@ class EventIngestionServiceTest {
     @Test
     void shouldThrowExceptionWhenOrderEventHasEmptyCustomerId() {
         IngestEventUseCase.OrderCommand command = new IngestEventUseCase.OrderCommand(
-                "event-2",
+                "test-correlation-id",
                 "order-1",
                 "",
                 "product-1",
@@ -69,7 +69,7 @@ class EventIngestionServiceTest {
     @Test
     void shouldThrowExceptionWhenOrderEventHasNegativePrice() {
         IngestEventUseCase.OrderCommand command = new IngestEventUseCase.OrderCommand(
-                "event-3",
+                "test-correlation-id",
                 "order-1",
                 "customer-1",
                 "product-1",
